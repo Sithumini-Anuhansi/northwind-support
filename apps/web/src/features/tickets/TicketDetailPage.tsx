@@ -3,8 +3,11 @@ import { ErrorMessage } from '../../components/ErrorMessage';
 import { Spinner } from '../../components/Spinner';
 import { useReferenceData } from '../../hooks/useReferenceData';
 import { AssignAgentControl } from './components/AssignAgentControl';
+import { EscalationHistory } from './components/EscalationHistory';
+import { EscalationPanel } from './components/EscalationPanel';
 import { StatusActions } from './components/StatusActions';
 import { TicketSummary } from './components/TicketSummary';
+import { useTicketEscalations } from './hooks/useTicketEscalations';
 import { useTicket } from './hooks/useTicket';
 
 export function TicketDetailPage() {
@@ -12,6 +15,7 @@ export function TicketDetailPage() {
   const ticketId = Number(id);
 
   const { data: ticket, isLoading, error, reload, setData } = useTicket(ticketId);
+  const escalationHistory = useTicketEscalations(ticketId);
   const reference = useReferenceData();
 
   if (Number.isNaN(ticketId)) {
@@ -51,6 +55,21 @@ export function TicketDetailPage() {
           </div>
 
           <StatusActions ticket={ticket} onUpdated={setData} />
+
+          <EscalationPanel
+            ticket={ticket}
+            onTicketUpdated={setData}
+            onRefresh={async () => {
+              await Promise.all([reload(), escalationHistory.reload()]);
+            }}
+          />
+
+          <EscalationHistory
+            entries={escalationHistory.data ?? []}
+            isLoading={escalationHistory.isLoading}
+            error={escalationHistory.error}
+            onRetry={() => void escalationHistory.reload()}
+          />
         </div>
 
         <aside className="detail-layout__side">

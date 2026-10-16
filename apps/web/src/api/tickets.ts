@@ -1,10 +1,12 @@
 import type {
   CreateTicketPayload,
+  EscalateTicketResponse,
   PagedResult,
   TicketDetail,
   TicketFilters,
   TicketListItem,
   TicketStatus,
+  TicketEscalation,
 } from '../types/api';
 import { request } from './client';
 
@@ -42,6 +44,14 @@ export const ticketsApi = {
     request<PagedResult<TicketListItem>>(`/tickets?${buildQuery(filters)}`),
 
   getTicket: (id: number) => request<TicketDetail>(`/tickets/${id}`),
+
+  getEscalations: (id: number) => request<TicketEscalation[]>(`/tickets/${id}/escalations`),
+
+  escalateTicket: (id: number, reason: string) =>
+    request<EscalateTicketResponse>(`/tickets/${id}/escalate`, {
+      method: 'POST',
+      body: JSON.stringify({ reason, escalatedBy: 'Support agent' }),
+    }),
 
   createTicket: (payload: CreateTicketPayload) =>
     request<TicketDetail>('/tickets', {

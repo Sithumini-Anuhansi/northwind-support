@@ -49,6 +49,9 @@ restrict behavior to preserve actor/owner references. The composite index
 `IX_TicketEscalations_TicketId_EscalatedAtUtc` starts with `TicketId` for the history lookup and
 supports newest-first ordering. `IX_TicketEscalations_FromAgentId` and
 `IX_TicketEscalations_ToAgentId` support the restrictive agent foreign keys without table scans.
+The detail page validates the reason before submission, displays server conflicts, and refreshes
+the ticket and history in place. Until Task 3 adds sign-in, the web client records the actor as
+`Support agent`.
 
 ---
 

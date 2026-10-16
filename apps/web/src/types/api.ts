@@ -81,6 +81,24 @@ export interface TicketDetail {
   slaStatus: SlaStatus;
 }
 
+export interface TicketEscalation {
+  id: number;
+  fromPriority: TicketPriority;
+  toPriority: TicketPriority;
+  fromAgent: AgentSummary | null;
+  toAgent: AgentSummary | null;
+  fromDueAtUtc: string | null;
+  toDueAtUtc: string | null;
+  reason: string;
+  escalatedBy: string;
+  escalatedAtUtc: string;
+}
+
+export interface EscalateTicketResponse {
+  ticket: TicketDetail;
+  escalation: TicketEscalation;
+}
+
 /** Everything the ticket list screen can narrow the results by. */
 export interface TicketFilters {
   search: string;
