@@ -135,9 +135,18 @@ public sealed class TicketQueries(SupportDbContext db, IClock clock) : ITicketQu
 
         var search = query.Search?.Trim();
         if (!string.IsNullOrEmpty(search))
-            source = source.Where(x => x.Ticket.Title.Contains(search)
-                || x.Ticket.Reference.Contains(search)
-                || x.Customer.Name.Contains(search));
+        {
+            var escapedSearch = search
+                .Replace("~", "~~")
+                .Replace("%", "~%")
+                .Replace("_", "~_")
+                .Replace("[", "~[");
+            var pattern = $"%{escapedSearch}%";
+
+            source = source.Where(x => EF.Functions.Like(x.Ticket.Title, pattern, "~")
+                || EF.Functions.Like(x.Ticket.Reference, pattern, "~")
+                || EF.Functions.Like(x.Customer.Name, pattern, "~"));
+        }
 
         return source;
     }
