@@ -58,7 +58,9 @@ production migration runner were not added because they add complexity outside t
 needs.
 
 The candidate ran backend unit and architecture tests, frontend Vitest tests and typechecking, and
-manual login and Docker checks. On an empty Compose volume, startup migrated and seeded 40 tickets;
+manual login and Docker checks. Browser evidence includes the login page, new-ticket form, customer
+list, ticket list, and ticket detail; terminal and Swagger screenshots record test and API checks.
+On an empty Compose volume, startup migrated and seeded 40 tickets;
 `/health` was healthy, restore stayed cached after a source-only change, `whoami` returned `app`, and
 the runtime and SDK image sizes were recorded in the README. `screenshots/` contains the candidate's
 test evidence. `login.json` is included to show the development login response shape; its temporary
@@ -77,5 +79,5 @@ CMD command. Docker Compose also suggested a different position for its progress
 form was used. Candidate-run checks, rather than unverified AI claims, are the verification evidence.
 
 The optional SLA summary report and the out-of-scope authentication and deployment features listed
-under Known limitations in the README remain unimplemented. Actual time spent was not tracked and
-should be supplied by the candidate in the submission note.
+under Known limitations in the README remain unimplemented. Actual time spent was not tracked; the
+README flags that the candidate should provide a rough estimate in the submission note.

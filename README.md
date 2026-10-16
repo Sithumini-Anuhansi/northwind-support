@@ -184,9 +184,19 @@ Final verification on Node 22.22.2 passed: `npm test` (53 backend and 17 fronten
 `npm run build`, `npm run lint`, and `npm run typecheck`. The API restore completed without
 vulnerability warnings after the package pin.
 
-The `screenshots/` directory contains candidate-captured test evidence. `login.json` is a captured
-development login response included for inspection; its JWT is replaced with a redaction marker, so
-it is not a usable session. Both are excluded from the Docker build context.
+The `screenshots/` directory contains candidate-captured test evidence and browser views of the
+login page, new-ticket form, customer list, ticket list, and ticket detail. The test screenshots
+document verification; the browser screenshots show the submitted UI in use. `login.json` is a
+captured development login response included to show the response shape; its JWT is replaced with a
+redaction marker, so it is not a usable session. These evidence files are excluded from the Docker
+build context.
+
+### Submission details
+
+- Fork: <https://github.com/Sithumini-Anuhansi/northwind-support>
+- Development login: `alex.turner@northwind-support.example` / `NorthwindDev!2026` (local fixture only)
+- Time spent: the candidate should provide a rough estimate with the submission; it was not tracked
+  during implementation.
 
 ### AI usage
 
