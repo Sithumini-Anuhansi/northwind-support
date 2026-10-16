@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ApiError, toErrorMessage } from '../../api/client';
 import { Field } from '../../components/Field';
-import { useAuth } from '../../auth/AuthContext';
+import { useAuth } from '../../auth/useAuth';
 
 interface ReturnLocation {
   from?: { pathname?: string; search?: string; hash?: string };

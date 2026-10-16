@@ -1,5 +1,5 @@
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { useAuth } from './auth/AuthContext';
+import { useAuth } from './auth/useAuth';
 
 /** Application shell: the header, the navigation, and wherever the router puts the page. */
 export function App() {

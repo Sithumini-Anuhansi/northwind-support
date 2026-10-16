@@ -10,7 +10,7 @@ afterEach(() => {
 describe('request', () => {
   it('attaches the stored bearer token to API calls', async () => {
     saveAccessToken('signed-in-token');
-    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response('{"ok":true}', {
+    const fetchMock = vi.fn<typeof fetch>(async () => new Response('{"ok":true}', {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     }));
@@ -24,7 +24,7 @@ describe('request', () => {
 
   it('signals session expiry when a protected API call returns 401', async () => {
     saveAccessToken('expired-token');
-    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response('{"title":"Unauthorized"}', {
+    const fetchMock = vi.fn<typeof fetch>(async () => new Response('{"title":"Unauthorized"}', {
       status: 401,
       headers: { 'Content-Type': 'application/problem+json' },
     }));
