@@ -1,0 +1,9 @@
+{
+  "token": "[REDACTED: development JWT omitted]",
+  "expiresAtUtc": "2026-10-16T20:40:39.1942332Z",
+  "user": {
+    "id": 1,
+    "fullName": "Alex Turner",
+    "email": "alex.turner@northwind-support.example"
+  }
+}

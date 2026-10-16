@@ -21,6 +21,9 @@ predicate in the same query pipeline, so it also affects the count and pages. Th
 query test covers priority, combined filters, customer-name search, and filtered paging.
 The SLA status predicate is also composed in this query before counting and paging; the API
 evaluates its due/resolution boundaries and configured at-risk threshold using the injected clock.
+The relational query test runs the composed query against SQLite and verifies the filtered result
+and count. Development EF Core command logging is enabled for inspecting the generated SQL when
+running against SQL Server; no SQL Server query plan or production-scale performance claim is made.
 The list and detail views share a text-labelled SLA indicator, and changing the SLA filter triggers
 an immediate list request.
 
@@ -70,11 +73,27 @@ stores the token in `localStorage` and sends it as a bearer token through the sh
 this keeps reloads signed in, with the trade-off that same-origin script injection could read it.
 An expired or rejected token clears the stored session and returns the user to sign-in.
 
+### Design choices and patterns
+
+Three patterns fit this scope: (1) a **Query Object** (`TicketQueries`) owns composable database
+filters so each new filter remains in SQL before count and paging; (2) **CQRS-style handlers** keep
+state-changing commands separate from read queries without adding a mediator dependency; and (3) a
+shared **triage policy service** applies the same priority, SLA, and assignment rules during create
+and escalation. `IClock` makes time-boundary rules deterministic. A generic repository layer was
+rejected because it would hide query composition without helping this scope.
+
+Credentials live on `Agent` because every user in this assignment is an agent. ASP.NET Identity's
+password hasher handles salted password verification. The browser uses `localStorage` to retain a
+login across reloads; the XSS trade-off is described above. Docker Compose enables startup migration
+only through a runtime flag for this assignment; production deployments should run migrations as a
+controlled job.
+
 ### Task 4: Docker API
 
 `apps/api/Dockerfile` restores from the SDK image before copying API source, publishes the API, then
 runs it from the smaller ASP.NET runtime image as the image's non-root `app` user on HTTP port 8080.
-The image contains no connection string or JWT key. Compose supplies the connection string using the
+The publish stage removes `appsettings.Development.json`; the image contains no development
+configuration, connection string, or JWT key. Compose supplies the connection string using the
 `sqlserver` service name, the environment name, and JWT settings at runtime. Copy `.env.example` to
 `.env` before starting Compose; its credentials are development fixtures only. The API waits for
 SQL Server's health check, applies migrations, and seeds demo data on startup through
@@ -114,7 +133,8 @@ the API against an empty SQL volume; `/health` returned `Healthy` and the authen
 returned 40 seeded tickets. After a temporary `.cs` comment change, the restore step was `CACHED`.
 `docker compose exec api whoami` returned `app`. Docker Desktop reported the API image as 455 MB
 disk usage / 125 MB content size and the .NET 10 SDK image as 1.3 GB disk usage / 351 MB content
-size. These are local image-store measurements; disk usage includes shared image layers.
+size. A temporary container check also confirmed `/app/appsettings.Development.json` is absent from
+the rebuilt image. These are local image-store measurements; disk usage includes shared image layers.
 
 ### Known limitations
 
@@ -124,43 +144,9 @@ optional SLA summary report is not implemented.
 
 ---
 
-## The assignment
-
-You are joining a team that already has this app working. Complete the tasks **in order**.
-Full requirements are in **[`ASSIGNMENT_CANDIDATE.md`](ASSIGNMENT_CANDIDATE.md)**.
-
-| # | Task | Done looks like | Effort |
-| --- | --- | --- | --- |
-| 1 | **Fix a defect, add server-side filtering** | Root cause fixed with a regression test; every list filter applied in the database with a correct count | ~2.5 h |
-| 2 | **Ticket escalation & assignment** | Automatic triage on create, escalation with history, SLA status, UI for all of it | ~7 h |
-| 3 | **Login and authentication** | Agents sign in; API rejects unauthenticated calls; login UI | ~4 h |
-| 4 | **Dockerise the API** *(optional)* | `docker compose up` gives a migrated, seeded API with no baked-in secret | ~1.5 h |
-
-### Guidance
-
-- **Time: 2 days.** Honestly marking a task "not finished" beats rushing all of them.
-- **Fork** this repo to your own GitHub account and work there. **Do not push to the original.**
-- **AI tools are allowed.** You must understand and be able to defend every line you submit.
-- **Commit as you go** and keep the real history. Commit the Task 1 defect fix and the filtering
-  separately from each other and from the feature work. A single squashed commit is not accepted.
-- **Where the spec is ambiguous**, make a decision, write it down in the README, and move on.
-- **Out of scope:** registration, password reset, roles, OAuth/SSO, refresh tokens, MFA,
-  notifications, CI, caching, visual redesign. Mention them under *Known limitations* instead.
-
-### Submission
-
-1. Update this **README** with what you built, your design decisions (chosen, rejected and why),
-   the defect's root cause, dev login credentials, how to run and test it, AI usage, and known
-   limitations. A reviewer must be able to run it without asking you anything.
-2. Add an **APPROACH.md** explaining your approach and thought process for each task.
-3. Commit both, then send us the **link to your fork**, the **dev login credentials**, and a
-   **rough note of time spent** on what. (If the fork is private, add the reviewers as collaborators.)
-
----
-
 ## Quick start
 
-**Prerequisites:** .NET SDK 10 (`global.json`), Node.js 22 (`.nvmrc`; 20.19+ works), Docker.
+**Prerequisites:** .NET SDK 10 (`global.json`), Node.js 22.19 or newer (`.nvmrc`), Docker.
 
 ```bash
 cp .env.example .env          # optional, every value has a working default
@@ -186,9 +172,39 @@ credentials.**
 
 ```bash
 npm test                      # dotnet test, then the web tests (Vitest)
+npm run typecheck --workspace apps/web
 ```
 
-Both pass on a clean checkout and neither needs a database.
+Backend unit and architecture tests use SQLite or test doubles; the frontend uses Vitest and React
+Testing Library. These checks do not need SQL Server. Docker startup, database health, seeded tickets,
+restore caching, image sizes, and the non-root user were verified separately as described above.
+`Microsoft.Data.SqlClient` brings in `System.Security.Cryptography.Pkcs`; the central package file pins
+it to 9.0.21, the patched 9.x release, instead of the vulnerable 9.0.11 version reported by NuGet.
+Final verification on Node 22.22.2 passed: `npm test` (53 backend and 17 frontend tests),
+`npm run build`, `npm run lint`, and `npm run typecheck`. The API restore completed without
+vulnerability warnings after the package pin.
+
+The `screenshots/` directory contains candidate-captured test evidence. `login.json` is a captured
+development login response included for inspection; its JWT is replaced with a redaction marker, so
+it is not a usable session. Both are excluded from the Docker build context.
+
+### AI usage
+
+Codex helped inspect the repository, explain the defect and filtering flow, draft implementation and
+tests, and interpret build and Docker output. The workflow that worked best was to take one acceptance
+criterion at a time, trace it through the UI/API/database boundary, then review the resulting code
+and test behavior before moving on. The candidate ran the tests and manual browser/API checks,
+captured screenshots, and reviewed the behavior. An AI-provided PowerShell setup command was
+initially run in Command Prompt and failed; it was replaced with the equivalent CMD command. Docker
+Compose's progress option also produced a non-fatal flag-order suggestion, which was corrected in the
+follow-up instructions. Test results in this README are based on candidate-run checks.
+
+The composable query and shared triage-policy drafts were kept after reviewing their call paths and
+behavior. A first AI-written auth-context split used filenames differing only by case; Windows
+typecheck caught the collision, and the shared module was renamed. An initial ticket-hook lint fix
+also failed the candidate's lint run, so the effect was revised to update state after the request
+settled. The initial Node 20 test run exposed that locked `undici` requires Node 22.19 or newer; the
+candidate switched to Node 22.22.2 and reran all checks successfully.
 
 ## Commands
 
