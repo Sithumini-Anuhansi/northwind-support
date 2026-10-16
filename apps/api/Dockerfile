@@ -14,6 +14,8 @@ RUN dotnet publish apps/api/src/SupportDesk.Presentation/SupportDesk.Presentatio
     --configuration Release \
     --no-restore \
     --output /app/publish
+# Keep development-only configuration and its local fixture credentials out of the image.
+RUN rm -f /app/publish/appsettings.Development.json
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app

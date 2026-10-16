@@ -1,5 +1,6 @@
 .git/
 .env
+login.json
 **/bin/
 **/obj/
 **/node_modules/
