@@ -9,6 +9,7 @@ using SupportDesk.Application.Features.Tickets.Services;
 using SupportDesk.Infrastructure;
 using SupportDesk.Presentation.Extensions;
 using SupportDesk.Presentation.Filters;
+using SupportDesk.Presentation.Health;
 using SupportDesk.Presentation.Middleware;
 using SupportDesk.Presentation.Security;
 
@@ -42,6 +43,8 @@ builder.Services.AddSingleton(slaOptions);
 builder.Services.AddSingleton<IAgentPasswordHasher, AgentPasswordHasher>();
 builder.Services.AddSingleton<JwtTokenService>();
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddHealthChecks()
+    .AddCheck<DatabaseHealthCheck>("database");
 
 var signingKey = builder.Configuration["Jwt:SigningKey"]
     ?? throw new InvalidOperationException("Configure Jwt:SigningKey or Jwt__SigningKey before starting the API.");
@@ -72,12 +75,17 @@ var app = builder.Build();
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment()
+    || builder.Configuration.GetValue<bool>("Database:ApplyMigrationsOnStartup"))
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    if (app.Environment.IsDevelopment())
+    {
+        app.UseSwagger();
+        app.UseSwaggerUI();
+    }
 
-    // Keeps a developer machine one command away from a working database.
+    // Development and the assignment's Docker Compose profile initialize their database.
+    // Production deployments should run migrations as a separate deployment step.
     await app.MigrateAndSeedAsync();
 }
 
@@ -86,6 +94,7 @@ app.UseCors(FrontendCorsPolicy);
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.MapHealthChecks("/health").AllowAnonymous();
 app.MapControllers();
 
 app.Run();

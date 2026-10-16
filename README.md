@@ -70,6 +70,52 @@ stores the token in `localStorage` and sends it as a bearer token through the sh
 this keeps reloads signed in, with the trade-off that same-origin script injection could read it.
 An expired or rejected token clears the stored session and returns the user to sign-in.
 
+### Task 4: Docker API
+
+`apps/api/Dockerfile` restores from the SDK image before copying API source, publishes the API, then
+runs it from the smaller ASP.NET runtime image as the image's non-root `app` user on HTTP port 8080.
+The image contains no connection string or JWT key. Compose supplies the connection string using the
+`sqlserver` service name, the environment name, and JWT settings at runtime. Copy `.env.example` to
+`.env` before starting Compose; its credentials are development fixtures only. The API waits for
+SQL Server's health check, applies migrations, and seeds demo data on startup through
+`Database__ApplyMigrationsOnStartup`.
+
+```bash
+cp .env.example .env
+docker compose down -v && docker compose up --build
+```
+
+The `down -v` step deletes this Compose project's SQL volume, so use it only when resetting local
+demo data is acceptable. Check `http://localhost:5080/health` for database reachability. To read the
+seeded tickets, sign in at `POST /api/auth/login` with the development credentials above and send its
+`Token` as a bearer token to `GET /api/tickets`; application endpoints remain protected.
+
+PowerShell example for the seeded list:
+
+```powershell
+$login = Invoke-RestMethod -Method Post -Uri http://localhost:5080/api/auth/login `
+  -ContentType 'application/json' `
+  -Body '{"email":"alex.turner@northwind-support.example","password":"NorthwindDev!2026"}'
+Invoke-RestMethod -Uri http://localhost:5080/api/tickets `
+  -Headers @{ Authorization = "Bearer $($login.token)" }
+```
+
+Run the React app against this container with `VITE_API_PROXY_TARGET=http://localhost:5080 npm run
+web` (PowerShell: `$env:VITE_API_PROXY_TARGET='http://localhost:5080'; npm run web`). The proxy
+keeps the browser on the Vite origin.
+
+Compose enables migrations and demo seeding for this self-contained assignment environment. In a
+real deployment, run migrations once as a controlled deployment job with a restricted database
+identity before rolling out the API. Having every API replica migrate at startup can create races,
+requires schema-change privileges at runtime, and couples availability to migration work.
+
+Docker verification on Windows Docker Desktop: after `docker compose down -v`, Compose brought up
+the API against an empty SQL volume; `/health` returned `Healthy` and the authenticated ticket list
+returned 40 seeded tickets. After a temporary `.cs` comment change, the restore step was `CACHED`.
+`docker compose exec api whoami` returned `app`. Docker Desktop reported the API image as 455 MB
+disk usage / 125 MB content size and the .NET 10 SDK image as 1.3 GB disk usage / 351 MB content
+size. These are local image-store measurements; disk usage includes shared image layers.
+
 ### Known limitations
 
 There are no refresh tokens, account lockout or rate limiting, roles or permissions, registration,
@@ -179,4 +225,5 @@ and 40 tickets across every status, priority and SLA state.
 | Port 1433 already in use | Change the port in `docker-compose.yml` and `.env` |
 | Browser warns about the certificate | `dotnet dev-certs https --trust`, or use the web app, which proxies |
 | Web app shows "Unable to load tickets" | The API is not running, or `VITE_API_PROXY_TARGET` points at the wrong port |
+| Container API is unhealthy | Check `docker compose ps` and `docker compose logs api sqlserver`; confirm `.env` has the SQL password and a JWT key at least 32 bytes long |
 | SQL Server slow on Apple Silicon | Enable Rosetta in Docker Desktop → Settings → General |
