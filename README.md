@@ -5,6 +5,13 @@ and move them through their lifecycle.
 
 **.NET 10 Web API** + **React 19 / TypeScript** + **SQL Server**, in one monorepo.
 
+### DEFECT-117
+
+The ticket list hook's fetch effect watched search and pagination fields but omitted the other
+filters. Changing Status updated state without triggering a request, so the stale filter was only
+sent after a watched field changed. The hook now requests immediately for non-search filters and
+debounces search alone. The regression test verifies both the request parameters and timing.
+
 ---
 
 ## The assignment
