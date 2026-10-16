@@ -20,6 +20,15 @@ filters combine with AND, and blank search is ignored. A later filter can be add
 predicate in the same query pipeline, so it also affects the count and pages. The SQLite-backed
 query test covers priority, combined filters, customer-name search, and filtered paging.
 
+### Task 2: create-time triage
+
+Ticket creation applies the configured priority and SLA window, then assigns the active,
+qualified agent with the fewest open tickets below their limit. Equal workloads are resolved by
+the lower agent ID for deterministic results. Category flags drive specialist and forced-critical
+behavior; no category names are hard-coded. The API returns the decision reasons with the created
+ticket. SLA windows, the premium multiplier, the minimum window, and the at-risk threshold come
+from the existing `Sla` configuration section.
+
 ---
 
 ## The assignment

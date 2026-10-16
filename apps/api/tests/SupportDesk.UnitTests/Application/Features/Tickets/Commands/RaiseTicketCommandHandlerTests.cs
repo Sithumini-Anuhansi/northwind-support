@@ -1,5 +1,6 @@
 using SupportDesk.Application.Contracts.Tickets;
 using SupportDesk.Application.Exceptions;
+using SupportDesk.Domain.Aggregates.Customers;
 using SupportDesk.Domain.Aggregates.Tickets;
 using SupportDesk.UnitTests.TestDoubles;
 
@@ -15,7 +16,7 @@ public class RaiseTicketCommandHandlerTests
     {
         var context = new TicketCommandTestContext();
 
-        await context.RaiseTicket.HandleAsync(Request(TicketPriority.High), CancellationToken.None);
+        var result = await context.RaiseTicket.HandleAsync(Request(TicketPriority.High), CancellationToken.None);
 
         var created = context.AddedTicket;
         Assert.NotNull(created);
@@ -24,6 +25,15 @@ public class RaiseTicketCommandHandlerTests
         Assert.Equal(TicketPriority.High, created.Priority);
         Assert.Equal(FixedClock.DefaultNow, created.CreatedAtUtc);
         Assert.Equal(FixedClock.DefaultNow, created.UpdatedAtUtc);
+        Assert.Equal(FixedClock.DefaultNow.AddHours(4), created.DueAtUtc);
+        Assert.Equal(1, created.AssignedAgentId);
+        Assert.Equal(TicketPriority.High, result.Priority);
+        Assert.Equal(FixedClock.DefaultNow.AddHours(4), result.DueAtUtc);
+        Assert.Equal("Alex Turner", result.AssignedAgent?.FullName);
+        Assert.NotNull(result.Triage);
+        Assert.Contains("requested High", result.Triage.PriorityReason);
+        Assert.Contains("Premium customer", result.Triage.SlaWindowReason);
+        Assert.Contains("Alex Turner", result.Triage.AssignmentReason);
         context.VerifySaved(Times.Once());
     }
 
@@ -43,8 +53,8 @@ public class RaiseTicketCommandHandlerTests
     {
         var context = new TicketCommandTestContext();
         context.Customers
-            .Setup(c => c.ExistsAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
+            .Setup(c => c.GetByIdAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Customer?)null);
 
         var exception = await Assert.ThrowsAsync<NotFoundException>(
             () => context.RaiseTicket.HandleAsync(Request(), CancellationToken.None));

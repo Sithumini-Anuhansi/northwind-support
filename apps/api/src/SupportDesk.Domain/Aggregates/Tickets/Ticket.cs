@@ -111,4 +111,19 @@ public sealed class Ticket : AggregateRoot
         AssignedAgentId = agentId;
         UpdatedAtUtc = nowUtc;
     }
+
+    /// <summary>Applies the initial priority, SLA due date, and owner selected by triage.</summary>
+    public void ApplyTriage(TicketPriority priority, DateTime dueAtUtc, int? agentId, DateTime nowUtc)
+    {
+        if (Status != TicketStatus.New || DueAtUtc is not null || UpdatedAtUtc != CreatedAtUtc)
+            throw new BusinessRuleViolationException("Triage can only be applied to a newly raised ticket.");
+
+        if (dueAtUtc <= nowUtc)
+            throw new ArgumentOutOfRangeException(nameof(dueAtUtc), "The SLA due date must be in the future.");
+
+        Priority = priority;
+        DueAtUtc = dueAtUtc;
+        AssignedAgentId = agentId;
+        UpdatedAtUtc = nowUtc;
+    }
 }

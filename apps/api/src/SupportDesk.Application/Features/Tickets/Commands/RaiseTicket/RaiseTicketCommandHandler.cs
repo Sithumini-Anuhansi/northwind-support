@@ -3,6 +3,7 @@ using SupportDesk.Application.Abstractions;
 using SupportDesk.Application.Contracts.Tickets;
 using SupportDesk.Application.Exceptions;
 using SupportDesk.Application.Features.Tickets.Queries.GetTicket;
+using SupportDesk.Application.Features.Tickets.Services;
 using SupportDesk.Domain.Aggregates.Tickets;
 using SupportDesk.Domain.Repositories;
 
@@ -15,26 +16,24 @@ public sealed class RaiseTicketCommandHandler(
     ITicketRepository tickets,
     ICustomerRepository customers,
     ICategoryRepository categories,
+    IAgentQueries agentQueries,
     IUnitOfWork unitOfWork,
     IClock clock,
+    TicketTriageService triage,
     GetTicketQueryHandler getTicket,
     ILogger<RaiseTicketCommandHandler> logger)
 {
     /// <exception cref="NotFoundException">The customer or the category does not exist.</exception>
     public async Task<TicketDetailDto> HandleAsync(CreateTicketRequest request, CancellationToken ct)
     {
-        if (!await customers.ExistsAsync(request.CustomerId, ct))
-        {
-            throw new NotFoundException("Customer", request.CustomerId);
-        }
+        var customer = await customers.GetByIdAsync(request.CustomerId, ct)
+            ?? throw new NotFoundException("Customer", request.CustomerId);
+        var category = await categories.GetByIdAsync(request.CategoryId, ct)
+            ?? throw new NotFoundException("Category", request.CategoryId);
+        var now = clock.UtcNow;
+        var agents = await agentQueries.GetAllAsync(ct);
+        var decision = triage.Decide(category, customer.Tier, request.RequestedPriority, agents, now);
 
-        if (!await categories.ExistsAsync(request.CategoryId, ct))
-        {
-            throw new NotFoundException("Category", request.CategoryId);
-        }
-
-        // The response window is still worked out by hand by the team lead, so a new ticket
-        // starts with no due date and no owner.
         var ticket = Ticket.Raise(
             await tickets.NextReferenceAsync(ct),
             request.Title,
@@ -42,7 +41,8 @@ public sealed class RaiseTicketCommandHandler(
             request.CustomerId,
             request.CategoryId,
             request.RequestedPriority ?? TicketPriority.Medium,
-            clock.UtcNow);
+            now);
+        ticket.ApplyTriage(decision.Priority, decision.DueAtUtc, decision.AssignedAgentId, now);
 
         await tickets.AddAsync(ticket, ct);
         await unitOfWork.SaveChangesAsync(ct);
@@ -51,6 +51,16 @@ public sealed class RaiseTicketCommandHandler(
             "Ticket {Reference} raised for customer {CustomerId} in category {CategoryId}.",
             ticket.Reference, ticket.CustomerId, ticket.CategoryId);
 
-        return await getTicket.HandleAsync(ticket.Id, ct);
+        var created = await getTicket.HandleAsync(ticket.Id, ct);
+        created.Priority = decision.Priority;
+        created.DueAtUtc = decision.DueAtUtc;
+        created.AssignedAgent = decision.AssignedAgent;
+        created.SlaStatus = decision.SlaStatus;
+        created.Triage = new TicketTriageDto(
+            decision.PriorityReason,
+            decision.SlaWindowReason,
+            decision.AssignmentReason);
+
+        return created;
     }
 }

@@ -35,4 +35,7 @@ public sealed class TicketDetailDto
 
     /// <summary>Derived from the dates above; never stored.</summary>
     public SlaStatus SlaStatus { get; set; }
+
+    /// <summary>Present in the create response; historical decision explanation.</summary>
+    public TicketTriageDto? Triage { get; set; }
 }

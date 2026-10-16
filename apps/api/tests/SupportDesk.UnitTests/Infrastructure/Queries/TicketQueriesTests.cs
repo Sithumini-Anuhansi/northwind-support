@@ -1,6 +1,7 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using SupportDesk.Application.Contracts.Tickets;
+using SupportDesk.Application.Features.Tickets.Services;
 using SupportDesk.Domain.Aggregates.Categories;
 using SupportDesk.Domain.Aggregates.Customers;
 using SupportDesk.Domain.Aggregates.Tickets;
@@ -34,7 +35,7 @@ public sealed class TicketQueriesTests
             Ticket.Raise("TCK-0003", "Invoice question", "Description", fabrikam.Id, general.Id, TicketPriority.High, FixedClock.DefaultNow));
         await db.SaveChangesAsync();
 
-        var queries = new TicketQueries(db, new FixedClock());
+        var queries = new TicketQueries(db, new FixedClock(), new SlaOptions());
 
         var priority = await queries.GetPagedAsync(
             new TicketQuery { Priority = TicketPriority.High }, CancellationToken.None);

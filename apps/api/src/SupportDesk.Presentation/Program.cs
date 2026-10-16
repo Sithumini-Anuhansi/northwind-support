@@ -1,11 +1,15 @@
 using System.Text.Json.Serialization;
 using SupportDesk.Application;
+using SupportDesk.Application.Features.Tickets.Services;
 using SupportDesk.Infrastructure;
 using SupportDesk.Presentation.Extensions;
 using SupportDesk.Presentation.Filters;
 using SupportDesk.Presentation.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
+
+var slaOptions = builder.Configuration.GetSection("Sla").Get<SlaOptions>() ?? new SlaOptions();
+slaOptions.Validate();
 
 const string FrontendCorsPolicy = "frontend";
 
@@ -28,6 +32,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 builder.Services.AddApplication();
+builder.Services.AddSingleton(slaOptions);
 builder.Services.AddInfrastructure(builder.Configuration);
 
 var app = builder.Build();
