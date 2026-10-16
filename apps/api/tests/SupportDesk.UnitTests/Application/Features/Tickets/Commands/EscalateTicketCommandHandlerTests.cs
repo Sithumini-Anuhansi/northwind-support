@@ -60,7 +60,7 @@ public sealed class EscalateTicketCommandHandlerTests
             NullLogger<EscalateTicketCommandHandler>.Instance);
 
         var response = await handler.HandleAsync(42,
-            new EscalateTicketRequest("  Customer impact increased  ", "  Team Lead  "), CancellationToken.None);
+            new EscalateTicketRequest("  Customer impact increased  "), "  Team Lead  ", CancellationToken.None);
 
         Assert.Equal(TicketPriority.High, ticket.Priority);
         Assert.Equal(clock.UtcNow.AddHours(4), ticket.DueAtUtc);
@@ -97,7 +97,7 @@ public sealed class EscalateTicketCommandHandlerTests
             NullLogger<EscalateTicketCommandHandler>.Instance);
 
         var exception = await Assert.ThrowsAsync<ConflictException>(() => handler.HandleAsync(
-            42, new EscalateTicketRequest("Valid escalation reason", "Team Lead"), CancellationToken.None));
+            42, new EscalateTicketRequest("Valid escalation reason"), "Team Lead", CancellationToken.None));
 
         Assert.Contains(message, exception.Message);
         unitOfWork.Verify(work => work.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);

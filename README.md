@@ -50,8 +50,22 @@ restrict behavior to preserve actor/owner references. The composite index
 supports newest-first ordering. `IX_TicketEscalations_FromAgentId` and
 `IX_TicketEscalations_ToAgentId` support the restrictive agent foreign keys without table scans.
 The detail page validates the reason before submission, displays server conflicts, and refreshes
-the ticket and history in place. Until Task 3 adds sign-in, the web client records the actor as
-`Support agent`.
+the ticket and history in place. Escalation history records the authenticated agent from the token;
+the client cannot choose that actor.
+
+### Task 3: API authentication
+
+Credentials are stored on the existing `Agent` aggregate because every account in this assignment
+is an agent; a separate Users table would duplicate the identity. `PasswordHash` is generated and
+verified with ASP.NET Identity's salted `PasswordHasher<Agent>`. Development seeding hashes the
+fixture password at seed time. Use any active seeded agent email with password
+`NorthwindDev!2026` (local development only).
+
+`POST /api/auth/login` issues an HS256 JWT with the agent ID, name and email; tokens expire after
+60 minutes. `GET /api/auth/me` returns that identity. A fallback authorization policy protects all
+API controllers, with login explicitly anonymous. The signing key is read from `Jwt:SigningKey` or
+`Jwt__SigningKey`; the development appsettings value is a local-only fixture and must be replaced
+outside local development. The escalation actor comes from the signed name claim.
 
 ---
 
@@ -135,9 +149,11 @@ Both pass on a clean checkout and neither needs a database.
 
 | Endpoint | Description |
 | --- | --- |
-| `GET /api/tickets` | Paged list with database-side `search`, `status`, `priority`, `categoryId`, `customerId`, `assignedAgentId`, `unassignedOnly`, `sortBy`, `sortDirection`. |
+| `POST /api/auth/login` · `GET /api/auth/me` | Sign in / current agent |
+| `GET /api/tickets` | Paged list with database-side `search`, `status`, `priority`, `categoryId`, `customerId`, `assignedAgentId`, `unassignedOnly`, `slaStatus`, `sortBy`, `sortDirection`. |
 | `GET /api/tickets/{id}` | One ticket |
 | `POST /api/tickets` | Create a ticket |
+| `POST /api/tickets/{id}/escalate` · `GET /api/tickets/{id}/escalations` | Escalate and view immutable escalation history |
 | `PATCH /api/tickets/{id}/status` · `/assignment` | Change status / assignee |
 | `GET /api/customers` · `/api/agents` · `/api/categories` | Reference data |
 

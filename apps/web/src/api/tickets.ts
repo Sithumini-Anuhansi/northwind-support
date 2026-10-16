@@ -50,7 +50,7 @@ export const ticketsApi = {
   escalateTicket: (id: number, reason: string) =>
     request<EscalateTicketResponse>(`/tickets/${id}/escalate`, {
       method: 'POST',
-      body: JSON.stringify({ reason, escalatedBy: 'Support agent' }),
+      body: JSON.stringify({ reason }),
     }),
 
   createTicket: (payload: CreateTicketPayload) =>

@@ -22,8 +22,20 @@ public sealed class EscalateTicketCommandHandler(
     GetTicketQueryHandler getTicket,
     ILogger<EscalateTicketCommandHandler> logger)
 {
-    public async Task<EscalateTicketResponse> HandleAsync(int id, EscalateTicketRequest request, CancellationToken ct)
+    public async Task<EscalateTicketResponse> HandleAsync(
+        int id,
+        EscalateTicketRequest request,
+        string escalatedBy,
+        CancellationToken ct)
     {
+        if (string.IsNullOrWhiteSpace(escalatedBy) || escalatedBy.Trim().Length > 100)
+        {
+            throw new ValidationException(new Dictionary<string, string[]>
+            {
+                ["EscalatedBy"] = ["The authenticated agent name is missing or too long."]
+            });
+        }
+
         var ticket = await tickets.GetByIdAsync(id, ct) ?? throw new NotFoundException("Ticket", id);
 
         if (ticket.Status is TicketStatus.Resolved or TicketStatus.Closed)
@@ -50,7 +62,7 @@ public sealed class EscalateTicketCommandHandler(
             ticket.DueAtUtc,
             decision.DueAtUtc,
             request.Reason,
-            request.EscalatedBy,
+            escalatedBy.Trim(),
             now);
 
         ticket.ApplyEscalation(decision.Priority, decision.DueAtUtc, decision.AssignedAgentId, now);

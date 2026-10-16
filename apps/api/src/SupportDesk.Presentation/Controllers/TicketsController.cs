@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using SupportDesk.Application.Contracts.Common;
 using SupportDesk.Application.Contracts.Tickets;
@@ -61,12 +62,24 @@ public sealed class TicketsController : ControllerBase
 
     /// <summary>Escalates a ticket and returns its updated state with the new history record.</summary>
     [HttpPost("{id:int}/escalate")]
-    public Task<EscalateTicketResponse> Escalate(
+    public async Task<ActionResult<EscalateTicketResponse>> Escalate(
         int id,
         EscalateTicketRequest request,
         [FromServices] EscalateTicketCommandHandler handler,
-        CancellationToken ct) =>
-        handler.HandleAsync(id, request, ct);
+        CancellationToken ct)
+    {
+        var actor = User.FindFirstValue(ClaimTypes.Name);
+        if (string.IsNullOrWhiteSpace(actor) || actor.Trim().Length > 100)
+        {
+            return Unauthorized(new ProblemDetails
+            {
+                Status = StatusCodes.Status401Unauthorized,
+                Title = "The authenticated agent name is missing or too long."
+            });
+        }
+
+        return Ok(await handler.HandleAsync(id, request, actor, ct));
+    }
 
     /// <summary>Returns a ticket's escalation history, newest first.</summary>
     [HttpGet("{id:int}/escalations")]
