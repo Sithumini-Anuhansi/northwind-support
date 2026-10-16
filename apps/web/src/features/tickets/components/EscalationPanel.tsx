@@ -89,7 +89,6 @@ export function EscalationPanel({ ticket, onTicketUpdated, onRefresh }: Escalati
         >
           {isSubmitting ? 'Escalating...' : 'Escalate ticket'}
         </button>
-        <p className="field__hint">This escalation will be recorded as Support agent until sign-in is added.</p>
       </form>
 
       {serverError && <p className="field__error" role="alert">{serverError}</p>}

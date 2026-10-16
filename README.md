@@ -39,8 +39,7 @@ from the existing `Sla` configuration section.
 injected clock, and keeps the current agent when they remain active, qualified, and under capacity.
 Otherwise it chooses the least-loaded eligible agent, with the same lowest-ID tie-break as create
 triage, or leaves the ticket unassigned. Critical, resolved, and closed tickets return 409. The
-reason is trimmed and must be 5–500 characters; `escalatedBy` is required and capped at 100 until
-Task 3 derives it from the signed-in agent.
+reason is trimmed and must be 5–500 characters. The actor is recorded from the signed-in agent.
 
 Each successful escalation and its immutable history row are saved in the same unit of work.
 `GET /api/tickets/{id}/escalations` returns the rows newest first with before/after priority, owner,
@@ -59,13 +58,23 @@ Credentials are stored on the existing `Agent` aggregate because every account i
 is an agent; a separate Users table would duplicate the identity. `PasswordHash` is generated and
 verified with ASP.NET Identity's salted `PasswordHasher<Agent>`. Development seeding hashes the
 fixture password at seed time. Use any active seeded agent email with password
-`NorthwindDev!2026` (local development only).
+`NorthwindDev!2026` (local development only); for example,
+`alex.turner@northwind-support.example` / `NorthwindDev!2026`.
 
 `POST /api/auth/login` issues an HS256 JWT with the agent ID, name and email; tokens expire after
 60 minutes. `GET /api/auth/me` returns that identity. A fallback authorization policy protects all
 API controllers, with login explicitly anonymous. The signing key is read from `Jwt:SigningKey` or
 `Jwt__SigningKey`; the development appsettings value is a local-only fixture and must be replaced
-outside local development. The escalation actor comes from the signed name claim.
+outside local development. The escalation actor comes from the signed name claim. The browser
+stores the token in `localStorage` and sends it as a bearer token through the shared API client;
+this keeps reloads signed in, with the trade-off that same-origin script injection could read it.
+An expired or rejected token clears the stored session and returns the user to sign-in.
+
+### Known limitations
+
+There are no refresh tokens, account lockout or rate limiting, roles or permissions, registration,
+password reset, OAuth/SSO, MFA, notifications, background jobs or real-time updates. The Task 2
+optional SLA summary report is not implemented.
 
 ---
 

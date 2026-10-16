@@ -65,6 +65,27 @@ a {
   gap: 16px;
 }
 
+.app__account {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+  color: var(--colour-muted);
+}
+
+.login-page {
+  max-width: 480px;
+  margin: 8vh auto 0;
+}
+
+.login-card h1 {
+  margin-bottom: 8px;
+}
+
+.login-card .button {
+  align-self: flex-start;
+}
+
 .app__nav a {
   text-decoration: none;
   padding: 4px 2px;
