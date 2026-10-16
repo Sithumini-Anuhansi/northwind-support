@@ -19,6 +19,10 @@ debounces search alone. The regression test verifies both the request parameters
 filters combine with AND, and blank search is ignored. A later filter can be added as another
 predicate in the same query pipeline, so it also affects the count and pages. The SQLite-backed
 query test covers priority, combined filters, customer-name search, and filtered paging.
+The SLA status predicate is also composed in this query before counting and paging; the API
+evaluates its due/resolution boundaries and configured at-risk threshold using the injected clock.
+The list and detail views share a text-labelled SLA indicator, and changing the SLA filter triggers
+an immediate list request.
 
 ### Task 2: create-time triage
 

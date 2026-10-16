@@ -83,4 +83,23 @@ describe('useTicketList', () => {
       expect.objectContaining({ status: 'InProgress', search: 'invoice' }),
     );
   });
+
+  it('requests immediately when the SLA status filter changes', async () => {
+    const { result } = renderHook(() => useTicketList());
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    getTickets.mockClear();
+
+    act(() => {
+      result.current.updateFilters({ slaStatus: 'AtRisk' });
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(getTickets).toHaveBeenCalledTimes(1);
+    expect(getTickets).toHaveBeenLastCalledWith(expect.objectContaining({ slaStatus: 'AtRisk' }));
+  });
 });

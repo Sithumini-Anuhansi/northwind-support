@@ -89,6 +89,7 @@ export interface TicketFilters {
   categoryId?: number;
   customerId?: number;
   assignedAgentId?: number;
+  slaStatus?: SlaStatus;
   unassignedOnly?: boolean;
   page: number;
   pageSize: number;

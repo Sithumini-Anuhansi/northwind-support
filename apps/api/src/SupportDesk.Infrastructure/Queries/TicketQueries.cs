@@ -19,11 +19,10 @@ public sealed class TicketQueries(SupportDbContext db, IClock clock, SlaOptions 
 {
     public async Task<PagedResult<TicketListItemDto>> GetPagedAsync(TicketQuery query, CancellationToken ct)
     {
-        var tickets = ApplyFilters(TicketsWithLabels(), query);
+        var now = clock.UtcNow;
+        var tickets = ApplyFilters(TicketsWithLabels(), query, now, slaOptions.AtRiskThresholdPercent);
 
         var totalCount = await tickets.CountAsync(ct);
-
-        var now = clock.UtcNow;
 
         var items = await ApplySort(tickets, query)
             .Skip((query.Page - 1) * query.PageSize)
@@ -120,7 +119,11 @@ public sealed class TicketQueries(SupportDbContext db, IClock clock, SlaOptions 
         select new TicketWithLabels { Ticket = ticket, Customer = customer, Category = category, Agent = agent };
 
     /// <summary>Applies each supplied list filter in SQL before counting, sorting, and paging.</summary>
-    private static IQueryable<TicketWithLabels> ApplyFilters(IQueryable<TicketWithLabels> source, TicketQuery query)
+    private static IQueryable<TicketWithLabels> ApplyFilters(
+        IQueryable<TicketWithLabels> source,
+        TicketQuery query,
+        DateTime nowUtc,
+        double atRiskThresholdPercent)
     {
         if (query.Status is { } status)
             source = source.Where(x => x.Ticket.Status == status);
@@ -139,6 +142,32 @@ public sealed class TicketQueries(SupportDbContext db, IClock clock, SlaOptions 
 
         if (query.UnassignedOnly)
             source = source.Where(x => x.Ticket.AssignedAgentId == null);
+
+        source = query.SlaStatus switch
+        {
+            SlaStatus.NotApplicable => source.Where(x => x.Ticket.DueAtUtc == null),
+            SlaStatus.Met => source.Where(x => x.Ticket.DueAtUtc != null
+                && x.Ticket.ResolvedAtUtc != null
+                && x.Ticket.ResolvedAtUtc <= x.Ticket.DueAtUtc),
+            SlaStatus.Breached => source.Where(x => x.Ticket.DueAtUtc != null
+                && ((x.Ticket.ResolvedAtUtc != null && x.Ticket.ResolvedAtUtc > x.Ticket.DueAtUtc)
+                    || (x.Ticket.ResolvedAtUtc == null && nowUtc > x.Ticket.DueAtUtc))),
+            SlaStatus.AtRisk => source.Where(x => x.Ticket.DueAtUtc != null
+                && x.Ticket.ResolvedAtUtc == null
+                && nowUtc <= x.Ticket.DueAtUtc
+                && (x.Ticket.DueAtUtc.Value <= x.Ticket.CreatedAtUtc
+                    || (double)(x.Ticket.DueAtUtc.Value.Ticks - nowUtc.Ticks)
+                        <= (x.Ticket.DueAtUtc.Value.Ticks - x.Ticket.CreatedAtUtc.Ticks)
+                            * (atRiskThresholdPercent / 100.0))),
+            SlaStatus.WithinSla => source.Where(x => x.Ticket.DueAtUtc != null
+                && x.Ticket.ResolvedAtUtc == null
+                && nowUtc <= x.Ticket.DueAtUtc
+                && x.Ticket.DueAtUtc.Value > x.Ticket.CreatedAtUtc
+                && (double)(x.Ticket.DueAtUtc.Value.Ticks - nowUtc.Ticks)
+                    > (x.Ticket.DueAtUtc.Value.Ticks - x.Ticket.CreatedAtUtc.Ticks)
+                        * (atRiskThresholdPercent / 100.0)),
+            _ => source
+        };
 
         var search = query.Search?.Trim();
         if (!string.IsNullOrEmpty(search))

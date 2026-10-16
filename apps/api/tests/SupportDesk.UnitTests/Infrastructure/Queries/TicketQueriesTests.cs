@@ -67,5 +67,19 @@ public sealed class TicketQueriesTests
         Assert.Single(firstPage.Items);
         Assert.Single(secondPage.Items);
         Assert.NotEqual(firstPage.Items[0].Id, secondPage.Items[0].Id);
+
+        var atRiskTicket = Ticket.Raise(
+            "TCK-0004", "SLA watch", "Description", fabrikam.Id, general.Id,
+            TicketPriority.High, FixedClock.DefaultNow);
+        db.Add(atRiskTicket);
+        db.Entry(atRiskTicket).Property(ticket => ticket.DueAtUtc).CurrentValue = FixedClock.DefaultNow.AddHours(4);
+        await db.SaveChangesAsync();
+
+        var atRiskClock = new FixedClock(FixedClock.DefaultNow.AddHours(3));
+        var atRiskQueries = new TicketQueries(db, atRiskClock, new SlaOptions());
+        var atRisk = await atRiskQueries.GetPagedAsync(
+            new TicketQuery { SlaStatus = SlaStatus.AtRisk }, CancellationToken.None);
+        Assert.Equal(1, atRisk.TotalCount);
+        Assert.Equal("TCK-0004", Assert.Single(atRisk.Items).Reference);
     }
 }
