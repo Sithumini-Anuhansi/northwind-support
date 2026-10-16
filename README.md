@@ -12,6 +12,14 @@ filters. Changing Status updated state without triggering a request, so the stal
 sent after a watched field changed. The hook now requests immediately for non-search filters and
 debounces search alone. The regression test verifies both the request parameters and timing.
 
+### Ticket list filtering
+
+`TicketQueries` composes exact-match and trimmed search predicates on the EF Core query before
+`CountAsync`, sorting, and paging. Search checks title, reference, and customer name; supplied
+filters combine with AND, and blank search is ignored. A later filter can be added as another
+predicate in the same query pipeline, so it also affects the count and pages. The SQLite-backed
+query test covers priority, combined filters, customer-name search, and filtered paging.
+
 ---
 
 ## The assignment
@@ -94,7 +102,7 @@ Both pass on a clean checkout and neither needs a database.
 
 | Endpoint | Description |
 | --- | --- |
-| `GET /api/tickets` | Paged list with `search`, `status`, `priority`, `categoryId`, `customerId`, `assignedAgentId`, `unassignedOnly`, `sortBy`, `sortDirection`. **Filters are accepted but not applied yet** (Task 1). |
+| `GET /api/tickets` | Paged list with database-side `search`, `status`, `priority`, `categoryId`, `customerId`, `assignedAgentId`, `unassignedOnly`, `sortBy`, `sortDirection`. |
 | `GET /api/tickets/{id}` | One ticket |
 | `POST /api/tickets` | Create a ticket |
 | `PATCH /api/tickets/{id}/status` · `/assignment` | Change status / assignee |
