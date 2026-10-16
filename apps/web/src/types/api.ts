@@ -79,6 +79,13 @@ export interface TicketDetail {
   dueAtUtc: string | null;
   resolvedAtUtc: string | null;
   slaStatus: SlaStatus;
+  triage?: TicketTriage | null;
+}
+
+export interface TicketTriage {
+  priorityReason: string;
+  slaWindowReason: string;
+  assignmentReason: string;
 }
 
 export interface TicketEscalation {

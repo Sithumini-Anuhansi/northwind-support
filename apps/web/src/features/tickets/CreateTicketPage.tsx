@@ -4,7 +4,9 @@ import { ErrorMessage } from '../../components/ErrorMessage';
 import { Spinner } from '../../components/Spinner';
 import { useReferenceData } from '../../hooks/useReferenceData';
 import type { TicketDetail } from '../../types/api';
+import { formatDateTime } from '../../lib/format';
 import { CreateTicketForm } from './components/CreateTicketForm';
+import { SlaIndicator } from './components/SlaIndicator';
 
 export function CreateTicketPage() {
   const reference = useReferenceData();
@@ -33,6 +35,29 @@ export function CreateTicketPage() {
           <p>
             Raised <strong>{created.reference}</strong> for {created.customer.name}.
           </p>
+          <h2>Triage result</h2>
+          <dl className="ticket-summary__details">
+            <dt>Applied priority</dt>
+            <dd>{created.priority}</dd>
+            <dt>Due</dt>
+            <dd>{created.dueAtUtc ? formatDateTime(created.dueAtUtc) : 'No SLA due date'}</dd>
+            <dt>SLA status</dt>
+            <dd><SlaIndicator status={created.slaStatus} /></dd>
+            <dt>Assignment</dt>
+            <dd>
+              {created.assignedAgent
+                ? created.assignedAgent.fullName
+                : `Unassigned: ${created.triage?.assignmentReason ?? 'no eligible agent was found.'}`}
+            </dd>
+            {created.triage && (
+              <>
+                <dt>Priority decision</dt>
+                <dd>{created.triage.priorityReason}</dd>
+                <dt>SLA window</dt>
+                <dd>{created.triage.slaWindowReason}</dd>
+              </>
+            )}
+          </dl>
           <div className="button-row">
             <button
               type="button"
