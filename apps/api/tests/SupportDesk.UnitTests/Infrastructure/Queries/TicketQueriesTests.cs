@@ -82,4 +82,44 @@ public sealed class TicketQueriesTests
         Assert.Equal(1, atRisk.TotalCount);
         Assert.Equal("TCK-0004", Assert.Single(atRisk.Items).Reference);
     }
+
+    [Fact]
+    public async Task GetEscalationsAsync_returnsHistoryNewestFirstWithAgentLabels()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        var options = new DbContextOptionsBuilder<SupportDbContext>().UseSqlite(connection).Options;
+
+        await using var db = new SupportDbContext(options);
+        await db.Database.EnsureCreatedAsync();
+
+        var customer = new Customer("Contoso", "contoso@example.test", null, CustomerTier.Standard, FixedClock.DefaultNow);
+        var category = new Category("General", false, false);
+        var agent = new SupportDesk.Domain.Aggregates.Agents.Agent("Alex Turner", "alex@example.test", 5, FixedClock.DefaultNow);
+        db.AddRange(customer, category, agent);
+        await db.SaveChangesAsync();
+
+        var ticket = Ticket.Raise("TCK-0001", "Issue", "Description", customer.Id, category.Id,
+            TicketPriority.Medium, FixedClock.DefaultNow);
+        db.Add(ticket);
+        await db.SaveChangesAsync();
+
+        db.AddRange(
+            TicketEscalation.Record(ticket.Id, TicketPriority.Medium, TicketPriority.High,
+                null, agent.Id, null, FixedClock.DefaultNow.AddHours(8), "First escalation", "Team Lead",
+                FixedClock.DefaultNow),
+            TicketEscalation.Record(ticket.Id, TicketPriority.High, TicketPriority.Critical,
+                agent.Id, null, FixedClock.DefaultNow.AddHours(8), FixedClock.DefaultNow.AddHours(4),
+                "Second escalation", "Team Lead", FixedClock.DefaultNow.AddMinutes(1)));
+        await db.SaveChangesAsync();
+
+        var history = await new TicketQueries(db, new FixedClock(), new SlaOptions())
+            .GetEscalationsAsync(ticket.Id, CancellationToken.None);
+
+        Assert.Equal(2, history.Count);
+        Assert.Equal("Second escalation", history[0].Reason);
+        Assert.Equal(TicketPriority.Critical, history[0].ToPriority);
+        Assert.Equal("Alex Turner", history[1].ToAgent?.FullName);
+        Assert.Equal("First escalation", history[1].Reason);
+    }
 }

@@ -126,4 +126,25 @@ public sealed class Ticket : AggregateRoot
         AssignedAgentId = agentId;
         UpdatedAtUtc = nowUtc;
     }
+
+    /// <summary>Applies the next escalation level and its newly triaged deadline and owner.</summary>
+    public void ApplyEscalation(TicketPriority priority, DateTime dueAtUtc, int? agentId, DateTime nowUtc)
+    {
+        if (Status is TicketStatus.Resolved or TicketStatus.Closed)
+            throw new BusinessRuleViolationException($"A {Status} ticket cannot be escalated.");
+
+        if (Priority == TicketPriority.Critical)
+            throw new BusinessRuleViolationException("A Critical ticket cannot be escalated.");
+
+        if ((int)priority != (int)Priority + 1)
+            throw new BusinessRuleViolationException("Escalation must raise priority by exactly one level.");
+
+        if (dueAtUtc <= nowUtc)
+            throw new ArgumentOutOfRangeException(nameof(dueAtUtc), "The SLA due date must be in the future.");
+
+        Priority = priority;
+        DueAtUtc = dueAtUtc;
+        AssignedAgentId = agentId;
+        UpdatedAtUtc = nowUtc;
+    }
 }

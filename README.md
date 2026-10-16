@@ -33,6 +33,23 @@ behavior; no category names are hard-coded. The API returns the decision reasons
 ticket. SLA windows, the premium multiplier, the minimum window, and the at-risk threshold come
 from the existing `Sla` configuration section.
 
+### Ticket escalation API
+
+`POST /api/tickets/{id}/escalate` raises priority one level, recalculates the due date from the
+injected clock, and keeps the current agent when they remain active, qualified, and under capacity.
+Otherwise it chooses the least-loaded eligible agent, with the same lowest-ID tie-break as create
+triage, or leaves the ticket unassigned. Critical, resolved, and closed tickets return 409. The
+reason is trimmed and must be 5–500 characters; `escalatedBy` is required and capped at 100 until
+Task 3 derives it from the signed-in agent.
+
+Each successful escalation and its immutable history row are saved in the same unit of work.
+`GET /api/tickets/{id}/escalations` returns the rows newest first with before/after priority, owner,
+and due date. `TicketEscalations` cascades when its ticket is deleted, while agent references use
+restrict behavior to preserve actor/owner references. The composite index
+`IX_TicketEscalations_TicketId_EscalatedAtUtc` starts with `TicketId` for the history lookup and
+supports newest-first ordering. `IX_TicketEscalations_FromAgentId` and
+`IX_TicketEscalations_ToAgentId` support the restrictive agent foreign keys without table scans.
+
 ---
 
 ## The assignment

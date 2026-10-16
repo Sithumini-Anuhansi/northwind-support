@@ -16,3 +16,9 @@ public interface ITicketRepository
 
     Task AddAsync(Ticket ticket, CancellationToken ct);
 }
+
+/// <summary>Persists immutable ticket-escalation history records.</summary>
+public interface ITicketEscalationRepository
+{
+    Task AddAsync(TicketEscalation escalation, CancellationToken ct);
+}

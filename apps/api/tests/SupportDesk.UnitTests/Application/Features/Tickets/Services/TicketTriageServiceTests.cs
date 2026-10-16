@@ -106,6 +106,55 @@ public sealed class TicketTriageServiceTests
         Assert.Contains("remains unassigned", result.AssignmentReason);
     }
 
+    [Fact]
+    public void DecideEscalation_RaisesOneLevelResetsTheWindowAndKeepsEligibleCurrentAgent()
+    {
+        var category = new Category("General", false, false);
+        var current = Agent(5, open: 4, limit: 5, categoryId: null);
+        var leastLoaded = Agent(2, open: 0, limit: 5, categoryId: null);
+
+        var result = new TicketTriageService(new SlaOptions()).DecideEscalation(
+            category, CustomerTier.Premium, TicketPriority.Medium, current.Id,
+            [leastLoaded, current], Now);
+
+        Assert.Equal(TicketPriority.High, result.Priority);
+        Assert.Equal(Now.AddHours(4), result.DueAtUtc);
+        Assert.Equal(current.Id, result.AssignedAgentId);
+        Assert.Contains("Kept", result.AssignmentReason);
+    }
+
+    [Fact]
+    public void DecideEscalation_ReassignsWhenCurrentAgentIsNoLongerEligible()
+    {
+        var category = new Category("Security", true, true);
+        var current = Agent(1, open: 2, limit: 8, categoryId: null);
+        var specialist = Agent(2, open: 3, limit: 8, categoryId: category.Id);
+
+        var result = new TicketTriageService(new SlaOptions()).DecideEscalation(
+            category, CustomerTier.Standard, TicketPriority.High, current.Id,
+            [current, specialist], Now);
+
+        Assert.Equal(TicketPriority.Critical, result.Priority);
+        Assert.Equal(Now.AddHours(4), result.DueAtUtc);
+        Assert.Equal(specialist.Id, result.AssignedAgentId);
+        Assert.Contains("Assigned", result.AssignmentReason);
+    }
+
+    [Fact]
+    public void DecideEscalation_LeavesTicketUnassignedWhenNoReplacementIsEligible()
+    {
+        var category = new Category("Security", true, true);
+        var current = Agent(1, open: 1, limit: 8, categoryId: null);
+        var fullSpecialist = Agent(2, open: 8, limit: 8, categoryId: category.Id);
+
+        var result = new TicketTriageService(new SlaOptions()).DecideEscalation(
+            category, CustomerTier.Standard, TicketPriority.High, current.Id,
+            [current, fullSpecialist], Now);
+
+        Assert.Null(result.AssignedAgentId);
+        Assert.Contains("remains unassigned", result.AssignmentReason);
+    }
+
     private static AgentDto Agent(int id, int open, int limit, int? categoryId, bool active = true) =>
         new(id, $"Agent {id}", $"agent{id}@example.test", active, limit, open,
             categoryId is null ? [] : [new CategorySummaryDto(categoryId.Value, "Category")]);
