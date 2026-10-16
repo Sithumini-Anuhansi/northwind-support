@@ -21,6 +21,6 @@
     "db:migrate": "dotnet tool restore && dotnet ef database update --project apps/api/src/SupportDesk.Infrastructure --startup-project apps/api/src/SupportDesk.Presentation"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22.19.0"
   }
 }
