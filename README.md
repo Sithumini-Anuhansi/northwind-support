@@ -1,5 +1,7 @@
 # Northwind Support Desk
 
+![Logo](screenshots/logo.png)
+
 A support ticket management system: raise tickets, search and filter them, assign them to agents,
 and move them through their lifecycle.
 
